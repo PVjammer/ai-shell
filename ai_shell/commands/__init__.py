@@ -15,6 +15,6 @@ def register_builtin_commands(executor):
     Args:
         executor: CommandExecutor instance
     """
-    # register_text_commands(executor)
+    register_text_commands(executor)
     # register_file_commands(executor)
     register_default_ai_commands(executor)

@@ -55,7 +55,7 @@ class IAgent(Protocol):
     The agent handles chat and reasoning operations.
     """
 
-    async def chat(self, message: str, context: Dict = None) -> AsyncIterator[str]:
+    async def chat(self, message: str, context: Dict | None = None) -> AsyncIterator[str]:
         """
         Chat with the agent, streaming response tokens.
 

@@ -18,6 +18,7 @@ from ai_shell.shell.renderer import Renderer, OutputType
 from ai_shell.shell.completer import ShellCompleter
 from ai_shell.shell.commands import MetaCommandHandler
 from ai_shell.core.memory import MemoryStore
+from ai_shell.core.ollama_agent import OllamaAgent
 
 
 class SessionState(Enum):
@@ -59,7 +60,7 @@ class REPL:
                  parser: Parser,
                  renderer: Renderer,
                  memory: MemoryStore,
-                 agent=None,
+                 agent=OllamaAgent(),
                  executor=None,
                  bash_executor=None,
                  registry=None,
@@ -207,7 +208,6 @@ class REPL:
         # Parse input
         try:
             command = self.parser.parse(user_input)
-            print(f"CMD = {command}")
         except ParseError as e:
             self.renderer.print_error(f"Parse error: {e}")
             return
@@ -252,7 +252,7 @@ class REPL:
             # Stream response from agent
             self.console.print()  # Empty line before response
             async for token in self.agent.chat(command.message):
-                self.console.print(token, end="", flush=True)
+                self.console.print(token, end="")
 
             self.console.print()  # Final newline
             self.console.print()  # Empty line after response

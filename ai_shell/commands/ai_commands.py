@@ -1,73 +1,122 @@
-from ollama import Client 
-from ollama._types import ChatResponse
-from ai_shell.core.command_helpers import (
-    get_input_text,
-    get_input_lines,
-    parse_flag,
-    parse_option,
-    is_error
-)
+"""AI-powered commands using LLMs."""
+
 import argparse
 from pathlib import Path
+from functools import partial
+
 
 def get_default_model():
-   from functools import partial
-#    model = "gpt-oss:20b"
-   model = "llama3.1"
-   client = Client()
-   return partial(client.chat, model=model, stream=False)
+    """Get default Ollama model client."""
+    try:
+        from ollama import Client
+        model = "llama3.1"
+        client = Client()
+        return partial(client.chat, model=model, stream=False)
+    except ImportError:
+        return None
 
 
+def _get_text_input(stdin, content, file_path=None):
+    """
+    Helper to get text input from stdin, content arg, or file.
+
+    Args:
+        stdin: Stdin input (takes priority)
+        content: Content argument (can be text or auto-detected file)
+        file_path: Explicit file path from -f/--file option
+
+    Returns:
+        tuple: (text, error)
+    """
+    # Priority 1: Explicit file path from -f option
+    if file_path:
+        try:
+            return Path(file_path).read_text(encoding="utf-8"), None
+        except Exception as e:
+            return None, f"Error reading file {file_path}: {e}"
+
+    # Priority 2: Stdin (from pipe)
+    if stdin:
+        return stdin, None
+
+    # Priority 3: Content argument
+    if not content:
+        return None, "Error: No input provided"
+
+    # Try auto-detect as file
+    path = Path(content)
+    if path.is_file():
+        try:
+            return path.read_text(encoding="utf-8"), None
+        except Exception:
+            pass  # Not readable, treat as text
+
+    # Otherwise treat as direct text
+    return content, None
 
 
 async def summarize_cmd(args, stdin=None, **options):
     r"""
-    Count lines, words, or characters in text.
-
+    Summarize text using an LLM.
 
     Usage:
         \summarize "hello world"                    # Direct text
         \summarize file.txt                         # File (auto-detected)
-        \summarize --file file.txt                  # Explicit file
-        \summarize file.txt --instructions "..."    # Custom summary instructions
-        \summarize file.txt -l "..."                # Short form
+        \summarize -f file.txt                      # Explicit file path
+        \summarize --file file.txt                  # Long form
+        \summarize file.txt -i "be concise"         # Custom instructions
+        \summarize -f file.txt -i "focus on key points"
         !cat file.txt | \summarize                  # From pipe
+        !cat file.txt | \summarize -i "brief summary"
     """
-    print(f"{args=}\n{options=}")
-    parser = argparse.ArgumentParser()
-    parser.add_argument("content")
-    parser.add_argument("--file", "-f", default=None)
-    parser.add_argument("--instructions", "-i", default=None)
-    args = parser.parse_args(args)
-    print(f"{args.content=}\n{args.file=}\n{args.instructions=}\n\n")
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("content", nargs='?', default=None)
+    parser.add_argument("--file", "-f", type=str, default=None,
+                       help="Explicit file path to read")
+    parser.add_argument("--instructions", "-i", type=str, default=None,
+                       help="Custom summarization instructions")
 
-    # Parse Arguments
-    text = stdin or args.content
-    if args.file:
-        text = Path(text).read_text(encoding="utf-8")
+    try:
+        parsed = parser.parse_args(args or [])
+    except (SystemExit, argparse.ArgumentError):
+        return "Error: Invalid arguments. Usage: \\summarize [text|file] [-f FILE] [-i INSTRUCTIONS]"
 
+    # Get text input
+    text, error = _get_text_input(stdin, parsed.content, parsed.file)
+    if error:
+        return error
 
-    # Get input with smart file/text resolution
-    # text = get_input_text(args, stdin, file_flag=parse_flag(options, 'file', 'f'))
-    if is_error(text):
-        return text
-
-    DEFAULT_SUMMARY_INSTRUCTIONS = "Provide a succint summary that captures the high level themes and key details of the text. " \
-    "End the summary with a short, one line, tl;dr (too long, didn't read) summary of the text"
-
-    # Check output flags
-    instructions = args.instructions if args.instructions else DEFAULT_SUMMARY_INSTRUCTIONS
-    summary_instructions = instructions or DEFAULT_SUMMARY_INSTRUCTIONS
-    messages = [{
-        "role": "assistant",
-        "content": f"You are a helpful assistant whose job is to summarize the provided text. {summary_instructions}"
-    }]
-
+    # Get model
     model = get_default_model()
-    messages.append({"role": "user", "content": text})
-    result = model(messages=messages)
+    if not model:
+        return "Error: Ollama not installed or not available. Install with: pip install ollama"
 
-    return result.message.content
+    # Set instructions
+    DEFAULT_SUMMARY_INSTRUCTIONS = (
+        "Provide a succinct summary that captures the high level themes and key details of the text. "
+        "End the summary with a short, one line, tl;dr (too long, didn't read) summary of the text"
+    )
+
+    instructions = parsed.instructions or DEFAULT_SUMMARY_INSTRUCTIONS
+
+    # Create messages
+    messages = [
+        {
+            "role": "system",
+            "content": f"You are a helpful assistant whose job is to summarize the provided text. {instructions}"
+        },
+        {
+            "role": "user",
+            "content": text
+        }
+    ]
+
+    # Call model
+    try:
+        result = model(messages=messages)
+        return result.message.content
+    except Exception as e:
+        return f"Error calling model: {e}"
 
 
 def register_default_ai_commands(executor):

@@ -173,36 +173,36 @@ class Parser:
         tool_options = {}
 
         for part in parts[1:]:
-            if part.startswith('--'):
-                # Parse --flag or --key=value
-                opt = part[2:]  # Remove --
-                if '=' in opt:
-                    key, value = opt.split('=', 1)
-                    # Convert value to appropriate type
-                    if value.lower() == 'true':
-                        tool_options[key] = True
-                    elif value.lower() == 'false':
-                        tool_options[key] = False
-                    elif value.isdigit():
-                        tool_options[key] = int(value)
-                    else:
-                        tool_options[key] = value
-                else:
-                    # Boolean flag (e.g., --verbose)
-                    tool_options[opt] = True
-            elif part.startswith('-') and len(part) == 2:
-                # Short option like -i
-                tool_options[part[1]] = True
-            else:
-                # Positional argument
-                tool_args.append(part)
+            # if part.startswith('--'):
+            #     # Parse --flag or --key=value
+            #     opt = part[2:]  # Remove --
+            #     if '=' in opt:
+            #         key, value = opt.split('=', 1)
+            #         # Convert value to appropriate type
+            #         if value.lower() == 'true':
+            #             tool_options[key] = True
+            #         elif value.lower() == 'false':
+            #             tool_options[key] = False
+            #         elif value.isdigit():
+            #             tool_options[key] = int(value)
+            #         else:
+            #             tool_options[key] = value
+            #     else:
+            #         # Boolean flag (e.g., --verbose)
+            #         tool_options[opt] = True
+            # elif part.startswith('-') and len(part) == 2:
+            #     # Short option like -i
+            #     tool_options[part[1]] = True
+            # else:
+            # Positional argument
+            tool_args.append(part)
 
         return ParsedCommand(
             type=CommandType.TOOL,
             raw=f"\\{tool_str}",
             tool_name=tool_name,
             tool_args=tool_args,
-            tool_options=tool_options
+            # tool_options=tool_options
         )
 
     def _parse_meta(self, meta_str: str) -> ParsedCommand:
