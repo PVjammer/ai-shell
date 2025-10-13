@@ -32,6 +32,7 @@ class ParsedCommand:
     # For tools
     tool_name: Optional[str] = None
     tool_args: Optional[List[str]] = None
+    tool_options: Optional[dict] = None  # --flag or --key=value options
 
     # For pipelines
     stages: Optional[List['ParsedCommand']] = None
@@ -166,13 +167,42 @@ class Parser:
             raise ParseError("Empty tool command")
 
         tool_name = parts[0]
-        tool_args = parts[1:] if len(parts) > 1 else []
+
+        # Separate positional args from --options
+        tool_args = []
+        tool_options = {}
+
+        for part in parts[1:]:
+            if part.startswith('--'):
+                # Parse --flag or --key=value
+                opt = part[2:]  # Remove --
+                if '=' in opt:
+                    key, value = opt.split('=', 1)
+                    # Convert value to appropriate type
+                    if value.lower() == 'true':
+                        tool_options[key] = True
+                    elif value.lower() == 'false':
+                        tool_options[key] = False
+                    elif value.isdigit():
+                        tool_options[key] = int(value)
+                    else:
+                        tool_options[key] = value
+                else:
+                    # Boolean flag (e.g., --verbose)
+                    tool_options[opt] = True
+            elif part.startswith('-') and len(part) == 2:
+                # Short option like -i
+                tool_options[part[1]] = True
+            else:
+                # Positional argument
+                tool_args.append(part)
 
         return ParsedCommand(
             type=CommandType.TOOL,
             raw=f"\\{tool_str}",
             tool_name=tool_name,
-            tool_args=tool_args
+            tool_args=tool_args,
+            tool_options=tool_options
         )
 
     def _parse_meta(self, meta_str: str) -> ParsedCommand:

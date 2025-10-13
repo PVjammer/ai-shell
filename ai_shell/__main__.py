@@ -10,6 +10,8 @@ from ai_shell.shell.renderer import Renderer
 from ai_shell.core.memory import MemoryStore
 from ai_shell.core.bash_executor import BashExecutor
 from ai_shell.core.docker_bash_executor import DockerBashExecutor, DockerBashExecutorWithWrite
+from ai_shell.core.command_executor import CommandExecutor
+from ai_shell.commands import register_builtin_commands
 
 
 @click.command()
@@ -34,6 +36,14 @@ def main(debug, prompt, vi_mode, history, bash_backend, docker_image):
     parser = Parser()
     renderer = Renderer()
     memory = MemoryStore()
+
+    # Create command executor and register built-in commands
+    executor = CommandExecutor()
+    register_builtin_commands(executor)
+
+    if debug:
+        commands = executor.get_command_names()
+        renderer.print_info(f"Registered {len(commands)} commands: {', '.join(commands)}")
 
     # Select bash executor backend
     if bash_backend == 'docker':
@@ -61,9 +71,12 @@ def main(debug, prompt, vi_mode, history, bash_backend, docker_image):
         history_file=history if history else "~/.ai_shell/history"
     )
 
-    # Create REPL with selected bash executor
-    # (agent, executor, and registry still use mocks)
-    repl = REPL(parser, renderer, memory, bash_executor=bash_executor, config=config)
+    # Create REPL with real command executor
+    # (agent still uses mock)
+    repl = REPL(parser, renderer, memory,
+                executor=executor,
+                bash_executor=bash_executor,
+                config=config)
 
     # Run REPL
     try:

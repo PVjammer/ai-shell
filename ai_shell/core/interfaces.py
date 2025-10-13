@@ -5,7 +5,7 @@ These protocols define the contract between shell layer and execution layer.
 Both mock and real implementations must conform to these interfaces.
 """
 
-from typing import Protocol, AsyncIterator, List, Dict, Any, Optional
+from typing import Protocol, AsyncIterator, List, Dict, Any, Optional, Callable
 from dataclasses import dataclass
 
 
@@ -20,7 +20,7 @@ class CommandResult:
                  success: bool,
                  output: str = "",
                  error: str = "",
-                 metadata: Dict[str, Any] = None):
+                 metadata: Dict[str, Any] = {}):
         self.success = success
         self.output = output
         self.error = error
@@ -90,77 +90,83 @@ class ICommandExecutor(Protocol):
     """
     Interface for executing agentic commands (tools).
 
-    Examples: \\summarize, \\search, \\analyze
+    Commands are registered with the executor and can be invoked
+    with positional args and keyword options (like bash commands).
+
+    Examples:
+        \\summarize file.txt --max-length=500
+        \\search "query" --engine=google
+        \\analyze code.py --style --security
     """
+
+    def register_command(self,
+                        name: str,
+                        handler: Callable,
+                        description: str = "",
+                        category: str = "general") -> None:
+        """
+        Register a command with the executor.
+
+        Args:
+            name: Command name (e.g., "summarize")
+            handler: Async callable that executes the command
+            description: Human-readable description
+            category: Command category for organization
+        """
+        ...
+
+    def has_command(self, name: str) -> bool:
+        """Check if command is registered."""
+        ...
+
+    def get_command_names(self) -> List[str]:
+        """Get list of all registered command names (for tab completion)."""
+        ...
+
+    def get_command_info(self, name: str) -> Optional[ToolDefinition]:
+        """Get command metadata by name."""
+        ...
 
     async def execute(self,
                      command_name: str,
-                     args: List[str],
-                     input_data: Optional[str] = None,
-                     context: Dict = None) -> CommandResult:
+                     args: List[str] = None,
+                     stdin: Optional[str] = None,
+                     **options) -> CommandResult:
         """
-        Execute an agentic command.
+        Execute a command with bash-like argument parsing.
 
         Args:
             command_name: Name of command (e.g., "summarize")
-            args: Command arguments
-            input_data: Optional input from pipeline
-            context: Execution context
+            args: Positional arguments (like bash: file1 file2)
+            stdin: Optional stdin input from pipeline
+            **options: Keyword arguments parsed from --flags
 
         Returns:
             CommandResult
+
+        Example:
+            # User types: \summarize file.txt --max-length=500
+            # Calls: execute("summarize", ["file.txt"], max_length=500)
         """
         ...
 
     async def execute_streaming(self,
                                command_name: str,
-                               args: List[str],
-                               input_data: Optional[str] = None,
-                               context: Dict = None) -> AsyncIterator[str]:
+                               args: List[str] = None,
+                               stdin: Optional[str] = None,
+                               **options) -> AsyncIterator[str]:
         """
         Execute command with streaming output.
 
         Args:
             command_name: Name of command
-            args: Command arguments
-            input_data: Optional input from pipeline
-            context: Execution context
+            args: Positional arguments
+            stdin: Optional stdin from pipeline
+            **options: Keyword arguments from --flags
 
         Yields:
             Output chunks
         """
-        ...
-
-
-# ============================================================================
-# Tool Registry Interface
-# ============================================================================
-
-class IToolRegistry(Protocol):
-    """
-    Interface for tool/command registry.
-
-    Manages available agentic commands and their metadata.
-    """
-
-    def register(self, tool: ToolDefinition) -> None:
-        """Register a tool."""
-        ...
-
-    def unregister(self, name: str) -> None:
-        """Unregister a tool."""
-        ...
-
-    def get(self, name: str) -> Optional[ToolDefinition]:
-        """Get tool definition by name."""
-        ...
-
-    def list(self, category: str = None) -> List[ToolDefinition]:
-        """List all registered tools, optionally filtered by category."""
-        ...
-
-    def list_names(self) -> List[str]:
-        """Get list of tool names (for completion)."""
         ...
 
 

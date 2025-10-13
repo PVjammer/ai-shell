@@ -99,7 +99,11 @@ class REPL:
         # Initialize components
         self.console = Console()
         self.completer = ShellCompleter(memory)
-        self.completer.set_tool_names(self.registry.list_names())
+        # Set tool names from executor (if it has get_command_names method)
+        if hasattr(self.executor, 'get_command_names'):
+            self.completer.set_tool_names(self.executor.get_command_names())
+        elif hasattr(self.registry, 'list_names'):
+            self.completer.set_tool_names(self.registry.list_names())
         self.meta_commands = MetaCommandHandler(self)
 
         # Ensure history directory exists
@@ -203,6 +207,7 @@ class REPL:
         # Parse input
         try:
             command = self.parser.parse(user_input)
+            print(f"CMD = {command}")
         except ParseError as e:
             self.renderer.print_error(f"Parse error: {e}")
             return
@@ -268,8 +273,9 @@ class REPL:
         try:
             result = await self.executor.execute(
                 command.tool_name,
-                command.tool_args or [],
-                context={"memory": self.memory}
+                args=command.tool_args or [],
+                stdin=None,
+                **(command.tool_options or {})
             )
 
             if result.success:
@@ -312,11 +318,70 @@ class REPL:
             self.state = SessionState.READY
 
     async def _handle_pipeline(self, command):
-        """Handle pipeline command (placeholder for now)."""
+        """Handle pipeline command - pipe output through stages."""
         self.state = SessionState.EXECUTING
-        self.renderer.print_warning(f"Pipeline execution not yet implemented (found {len(command.stages)} stages)")
-        self.renderer.print_info(f"Stages: {[s.type.value for s in command.stages]}")
-        self.state = SessionState.READY
+
+        try:
+            # Start with empty stdin
+            current_output = None
+
+            # Execute each stage, passing output to next stage
+            for i, stage in enumerate(command.stages):
+                if self.config.debug_mode:
+                    self.renderer.print_debug(f"Pipeline stage {i+1}/{len(command.stages)}: {stage.type.value}")
+
+                if stage.type == CommandType.BASH:
+                    # Execute bash command
+                    if current_output:
+                        result = await self.bash_executor.execute(
+                            stage.command,
+                            input_data=current_output.encode() if isinstance(current_output, str) else current_output
+                        )
+                    else:
+                        result = await self.bash_executor.execute(stage.command)
+
+                    if not result.success:
+                        self.renderer.print_error(f"Pipeline failed at stage {i+1}: {result.error}")
+                        self.state = SessionState.READY
+                        return
+
+                    current_output = result.output
+
+                elif stage.type == CommandType.TOOL:
+                    # Execute tool command
+                    result = await self.executor.execute(
+                        stage.tool_name,
+                        args=stage.tool_args or [],
+                        stdin=current_output,
+                        **(stage.tool_options or {})
+                    )
+
+                    if not result.success:
+                        self.renderer.print_error(f"Pipeline failed at stage {i+1}: {result.error}")
+                        self.state = SessionState.READY
+                        return
+
+                    current_output = result.output
+
+                else:
+                    self.renderer.print_error(f"Cannot use {stage.type.value} in pipeline")
+                    self.state = SessionState.READY
+                    return
+
+            # Display final output
+            if current_output:
+                self.renderer.render_markdown(current_output)
+                self.memory.set_variable("$last", current_output)
+
+            self.state = SessionState.READY
+
+        except Exception as e:
+            self.renderer.print_error(f"Pipeline error: {e}")
+            if self.config.debug_mode:
+                import traceback
+                self.renderer.print_debug(traceback.format_exc())
+            self.state = SessionState.ERROR
+            self.state = SessionState.READY
 
     def _get_prompt(self) -> str:
         """Get prompt string with optional status indicator."""
