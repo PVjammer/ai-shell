@@ -109,7 +109,7 @@ class CommandExecutor:
             CommandResult
 
         Example:
-            # User types: \summarize file.txt --max-length=500
+            # User types: \\summarize file.txt --max-length=500
             # Calls: execute("summarize", ["file.txt"], max_length=500)
         """
         if not self.has_command(command_name):

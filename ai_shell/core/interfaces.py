@@ -145,7 +145,7 @@ class ICommandExecutor(Protocol):
             CommandResult
 
         Example:
-            # User types: \summarize file.txt --max-length=500
+            # User types: \\summarize file.txt --max-length=500
             # Calls: execute("summarize", ["file.txt"], max_length=500)
         """
         ...
