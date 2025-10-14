@@ -82,6 +82,7 @@ class REPL:
         self.renderer = renderer
         self.memory = memory
         self.config = config or REPLConfig()
+        self.context_session = {}
 
         # State
         self.state = SessionState.STARTING
@@ -251,7 +252,7 @@ class REPL:
         try:
             # Stream response from agent
             self.console.print()  # Empty line before response
-            async for token in self.agent.chat(command.message):
+            async for token in self.agent.chat(command.message, context=self.context_session):
                 self.console.print(token, end="")
 
             self.console.print()  # Final newline

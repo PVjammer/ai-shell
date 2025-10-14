@@ -29,13 +29,6 @@ class OllamaAgent(IAgent):
         
     def __call__(self, _input: list[dict]):
         return self._call_func(messages=_input)
-    
-    async def _quick_chat(self, message: str, context: dict | None):
-        self.messages.append({"role": "user", "content": message})
-        response_stream = self._call_func(messages=self.messages)
-        print("Got responsse")
-        for chunk in response_stream:
-            yield chunk.message.content
 
     async def chat(self, message: str, context: Dict | None = None) -> AsyncIterator[str]:
         if context:
