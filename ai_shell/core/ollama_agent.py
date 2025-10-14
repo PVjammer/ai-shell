@@ -1,5 +1,6 @@
 
 import asyncio
+import json
 from functools import partial
 
 from typing import AsyncIterator, Dict
@@ -32,8 +33,14 @@ class OllamaAgent(IAgent):
 
     async def chat(self, message: str, context: Dict | None = None) -> AsyncIterator[str]:
         if context:
-            print(f"Context: {context}\n\n")
-        
+            for k, v in context.items():
+                print(f"{k}:  {len(v)}")
+            print("=="*10)
+            if not isinstance(context, dict):
+                raise ValueError(f"Got malformed context. Expected dict. Got {type(context)}")
+            ctx = json.dumps(context)
+            message = f"{message} Use the following context to aid in providing a response:\n\n{ctx}"
+            print("Loaded Context")
         # Simple model chat
         self.messages.append({"role": "user", "content": message})
         response_stream = self._call_func(messages=self.messages, stream=True)
@@ -43,7 +50,14 @@ class OllamaAgent(IAgent):
         
     async def generate(message: str, context: Dict | None = None) -> AsyncIterator[str]:
         if context:
-            print(f"Context: {context}\n\n")
+            for k, v in context.items():
+                print(f"{k}:  {len(v)}")
+            print("=="*10)
+            if not isinstance(context, dict):
+                raise ValueError(f"Got malformed context. Expected dict. Got {type(context)}")
+            ctx = json.dumps(context)
+            message = f"{message} Use the following context to aid in providing a response:\n\n{ctx}"
+            print("Loaded Context")
         
         # Simple model chat
         self.messages.append({"role": "user", "content": message})

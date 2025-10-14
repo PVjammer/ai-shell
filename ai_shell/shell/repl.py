@@ -252,7 +252,10 @@ class REPL:
         try:
             # Stream response from agent
             self.console.print()  # Empty line before response
-            async for token in self.agent.chat(command.message, context=self.context_session):
+            async for token in self.agent.chat(
+                command.message,
+                context=self.executor.context_session
+            ):
                 self.console.print(token, end="")
 
             self.console.print()  # Final newline

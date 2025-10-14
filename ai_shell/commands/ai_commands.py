@@ -1,6 +1,7 @@
 """AI-powered commands using LLMs."""
 
 import argparse
+from datetime import datetime
 from pathlib import Path
 from functools import partial
 
@@ -119,6 +120,61 @@ async def summarize_cmd(args, stdin=None, **options):
         return f"Error calling model: {e}"
 
 
+async def context_cmd(args, stdin, context_session={}, **options):
+    r"""
+    """
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("content", nargs='?', default=None)
+    parser.add_argument("--file", "-f", type=str, default=None,
+                       help="Explicit file path to read")
+    parser.add_argument("--key", "-k", type=str, default=None,
+                       help="key to store the context under")
+    parser.add_argument("--is_append", "-a", default=True,
+                       help="append to the content for the provided key",
+                       action="store_true")
+    try:
+        parsed = parser.parse_args(args or [])
+    except (SystemExit, argparse.ArgumentError):
+        return "Error: Invalid arguments. Usage: \\context [text|file] [-f FILE] [-key KEY]"
+    
+    text, error = _get_text_input(stdin, parsed.content, parsed.file)
+    if error:
+        return error
+    if not text:
+        print("No content was passed to the tool. Nothing was added to the context.")
+    
+    
+    # key = str(datetime.now().isoformat()) if not parsed.key else parsed.key
+    key = "user_context" if not parsed.key else parsed.key
+    if key not in context_session:
+        context_session[key] = []
+    if parsed.is_append:
+        context_session[key].append(text)
+        return f"Context added to {key} key"
+    context_session[key] = [text]
+    return f"New context set for {key} key"
+
+async def clear_context_cmd(args, stdin, context_session={}, **options):
+    r"""
+    """
+    parser = argparse.ArgumentParser(add_help=False)    
+    parser.add_argument("--key", "-k", type=str, default=None,
+                       help="key to store the context under")
+    
+    try:
+        parsed = parser.parse_args(args or [])
+    except (SystemExit, argparse.ArgumentError):
+        return "Error: Invalid arguments. Usage: \\context [text|file] [-f FILE] [-key KEY]"
+    if parsed.key:
+        if parsed.key not in context_session:
+            print(f"No context stored for {parsed.key}. Context remains unchanged.")
+        context_session[parsed.key] = []
+        return f"Cleared context for key {parsed.key}"
+    for k, v in context_session.items():
+        context_session[k] = []
+    return f"Cleared all context"
+
+
 def register_default_ai_commands(executor):
     """
     Register all AI commands included with the default ai-shell installation
@@ -126,3 +182,17 @@ def register_default_ai_commands(executor):
     executor.register_command("summarize", summarize_cmd,
                              "Summarize text",
                              category="text")
+    
+    executor.register_command("add_context",
+                              partial(context_cmd, context_session=executor.context_session),
+                              "Add context for the agent",
+                              category="text"
+                              )
+    
+    executor.register_command("clear_context",
+                              partial(clear_context_cmd, context_session=executor.context_session),
+                              "Add context for the agent",
+                              category="text"
+                              )
+    
+    print(f"Registered Summarize, Add Context and Clear Context commands")

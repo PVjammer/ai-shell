@@ -21,6 +21,7 @@ class CommandExecutor:
         """Initialize command executor."""
         self.commands: Dict[str, Callable] = {}
         self.command_info: Dict[str, ToolDefinition] = {}
+        self.context_session = {"user_context": []}
 
     def register_command(self,
                         name: str,
@@ -70,6 +71,25 @@ class CommandExecutor:
     def get_command_info(self, name: str) -> Optional[ToolDefinition]:
         """Get command metadata by name."""
         return self.command_info.get(name)
+
+    def get_context_session(self):
+        return self.context_session
+    
+    def set_context(self, ctx: dict):
+        self.context_session = ctx
+
+    def add_context(self, ctx: str | dict, key: str = "user_context"):
+        if key not in self.context_session:
+            self.context_session[key] = []
+        self.context_session[key].append(ctx)
+
+    def clear_context(self, key: str | None = None):
+        if not key:
+            self.context_session = {"user_context": []}
+            return
+        if key not in self.context_session:
+            raise ValueError(f"No context found for key: {key}")
+        self.context_session[key] = []
 
     async def execute(self,
                      command_name: str,
