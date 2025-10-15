@@ -7,7 +7,7 @@ from contextlib import AsyncExitStack
 from pydantic import BaseModel
 
 from mcp import ClientSession, StdioServerParameters
-from mcp.types import TextContent
+from mcp.types import TextContent, Tool
 from mcp.client.stdio import stdio_client
 
 import logging
@@ -16,12 +16,12 @@ import logging
 
 class MCPTool:
 
-    def __init__(self, name: str, tool_spec: dict, client: MCPClient) -> None:
+    def __init__(self, name: str, tool_spec: Tool, client: MCPClient) -> None:
         self.name = name
         self._client = client
         self._build_tool(tool_spec)
 
-    def _build_tool(self, tool_spec: dict):
+    def _build_tool(self, tool_spec: Tool):
         self.input_schema = tool_spec.inputSchema
         # self._call_func = partial(self._session.call_tool, name=self.name)
 

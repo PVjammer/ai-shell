@@ -164,7 +164,7 @@ async def clear_context_cmd(args, stdin, context_session={}, **options):
     try:
         parsed = parser.parse_args(args or [])
     except (SystemExit, argparse.ArgumentError):
-        return "Error: Invalid arguments. Usage: \\context [text|file] [-f FILE] [-key KEY]"
+        return "Error: Invalid arguments. Usage: \\context [-key KEY]"
     if parsed.key:
         if parsed.key not in context_session:
             print(f"No context stored for {parsed.key}. Context remains unchanged.")
@@ -174,6 +174,27 @@ async def clear_context_cmd(args, stdin, context_session={}, **options):
         context_session[k] = []
     return f"Cleared all context"
 
+async def view_context_cmd(args, stdin, context_session={}, **options):
+    r"""
+    """
+    parser = argparse.ArgumentParser(add_help=False)    
+    parser.add_argument("--key", "-k", type=str, default=None,
+                       help="key to store the context under")
+    try:
+        parsed = parser.parse_args(args or [])
+    except (SystemExit, argparse.ArgumentError):
+        return "Error: Invalid arguments. Usage: \\context [-key KEY]"
+    if parsed.key:
+        if parsed.key not in context_session:
+            print(f"No context stored for {parsed.key}.")
+        
+        return f"Context for {parsed.key}:\n\n{context_session[parsed.key]}\n\n" + "=="*20
+    
+    context_str = "All Context:\n\n"
+    for k, v in context_session.items():
+        context_str += f"{k}:\n{v}\n\n"
+    context_str += "==" * 20
+    return context_str
 
 def register_default_ai_commands(executor):
     """
@@ -192,6 +213,12 @@ def register_default_ai_commands(executor):
     executor.register_command("clear_context",
                               partial(clear_context_cmd, context_session=executor.context_session),
                               "Add context for the agent",
+                              category="text"
+                              )
+
+    executor.register_command("view_context",
+                              partial(view_context_cmd, context_session=executor.context_session),
+                              "View the agent's current context",
                               category="text"
                               )
     
