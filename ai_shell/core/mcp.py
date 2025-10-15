@@ -90,7 +90,7 @@ class MCPClient:
     async def _cleanup(self):
         raise NotImplementedError()
 
-    async def diconnect(self):
+    async def disconnect(self):
         await self._cleanup()
 
 
@@ -134,5 +134,5 @@ async def install_mcp_servers(server_map: dict) -> dict[str, MCPClient]:
             arguments=args
         )
         mcp_clients[server_name] = _client
-        await _client.diconnect()
+        await _client.disconnect()
     return mcp_clients

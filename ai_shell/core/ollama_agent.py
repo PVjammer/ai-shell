@@ -93,7 +93,7 @@ class OllamaAgent(IAgent):
             except Exception as e:
                 logging.exception("Error building chat history: {e}")
 
-    async def generate(message: str, context: Dict | None = None) -> AsyncIterator[str]:
+    async def generate(self, message: str, context: Dict | None = None) -> AsyncIterator[str]:
         if context:
             for k, v in context.items():
                 print(f"{k}:  {len(v)}")

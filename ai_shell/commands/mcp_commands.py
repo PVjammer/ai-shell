@@ -70,7 +70,7 @@ class CommandMCP:
         arguments = vars(parsed)
 
         result = await self._client.execute(args=arguments)
-        await self._client._client.diconnect()
+        await self._client._client.disconnect()
         return result
 
 def register_mcp_commands(executor: CommandExecutor, mcp_servers: dict = {}):
