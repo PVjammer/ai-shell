@@ -72,6 +72,63 @@ class CommandExecutor:
         """Get command metadata by name."""
         return self.command_info.get(name)
 
+    def get_all_commands_info(self) -> Dict[str, ToolDefinition]:
+        """Get metadata for all registered commands."""
+        return self.command_info.copy()
+
+    def get_help(self, command_name: Optional[str] = None) -> str:
+        """
+        Get help text for a command or all commands.
+
+        Args:
+            command_name: Optional specific command name. If None, returns help for all commands.
+
+        Returns:
+            Formatted help text in markdown
+        """
+        if command_name:
+            # Get help for specific command
+            if command_name not in self.command_info:
+                return f"Unknown command: {command_name}"
+
+            info = self.command_info[command_name]
+            help_text = f"# {info.name}\n\n"
+            if info.description:
+                help_text += f"{info.description}\n\n"
+
+            # Get function signature if available
+            if command_name in self.commands:
+                handler = self.commands[command_name]
+                sig = inspect.signature(handler)
+                help_text += f"**Signature:** `{command_name}{sig}`\n\n"
+
+                # Extract docstring
+                if handler.__doc__:
+                    help_text += f"**Details:**\n```\n{handler.__doc__.strip()}\n```\n"
+
+            help_text += f"\n**Category:** {info.category}\n"
+            return help_text
+        else:
+            # Get help for all commands grouped by category
+            categories: Dict[str, List[ToolDefinition]] = {}
+            for info in self.command_info.values():
+                if info.category not in categories:
+                    categories[info.category] = []
+                categories[info.category].append(info)
+
+            if not categories:
+                return "No commands registered yet."
+
+            help_text = "# Available Commands\n\n"
+            for category in sorted(categories.keys()):
+                help_text += f"## {category.capitalize()}\n\n"
+                for info in sorted(categories[category], key=lambda x: x.name):
+                    help_text += f"- **{info.name}**: {info.description or 'No description'}\n"
+                help_text += "\n"
+
+            help_text += "\nUse `\\help <command>` for detailed help on a specific command.\n"
+            return help_text
+
     def get_context_session(self):
         return self.context_session
     
