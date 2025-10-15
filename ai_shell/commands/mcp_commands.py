@@ -1,6 +1,9 @@
 import argparse
 from pathlib import Path
 from ai_shell.core.mcp import MCPClient, MCPTool
+from ai_shell.core.command_executor import CommandExecutor
+
+from pprint import pprint
 
 
 def add_arguments_from_schema(parser, schema, prefix=""):
@@ -42,43 +45,8 @@ def add_arguments_from_schema(parser, schema, prefix=""):
             help=help_text + (f" (default: {default})" if default is not None else "")
         )
 
-def _get_text_input(stdin, content, file_path=None):
-    """
-    Helper to get text input from stdin, content arg, or file.
-
-    Args:
-        stdin: Stdin input (takes priority)
-        content: Content argument (can be text or auto-detected file)
-        file_path: Explicit file path from -f/--file option
-
-    Returns:
-        tuple: (text, error)
-    """
-    # Priority 1: Explicit file path from -f option
-    if file_path:
-        try:
-            return Path(file_path).read_text(encoding="utf-8"), None
-        except Exception as e:
-            return None, f"Error reading file {file_path}: {e}"
-
-    # Priority 2: Stdin (from pipe)
-    if stdin:
-        return stdin, None
-
-    # Priority 3: Content argument
-    if not content:
-        return None, "Error: No input provided"
-
-    # Try auto-detect as file
-    path = Path(content)
-    if path.is_file():
-        try:
-            return path.read_text(encoding="utf-8"), None
-        except Exception:
-            pass  # Not readable, treat as text
-
-    # Otherwise treat as direct text
-    return content, None
+def _parse_stdin(stdin):
+    pass
 
 class CommandMCP:
 
@@ -91,10 +59,32 @@ class CommandMCP:
         tool_schema = self._client.input_schema
         add_arguments_from_schema(schema=tool_schema, parser=self._parser)
 
-    def run_cmd(self, args, stdin, **options):
+    async def run_cmd(self, args, stdin, **options):
         r"""
         """
         try:
-            parsed = self._parser.parse_args(args or [])  
+            parsed = self._parser.parse_args(args or [])
         except (SystemExit, argparse.ArgumentError):
             return "Error: Invalid arguments. Usage: \\summarize [text|file] [-f FILE] [-i INSTRUCTIONS]"
+    
+        arguments = vars(parsed)
+
+        result = await self._client.execute(args=arguments)
+        await self._client._client.diconnect()
+        return result
+
+def register_mcp_commands(executor: CommandExecutor, mcp_servers: dict = {}):
+    if not mcp_servers:
+        print(f"No MCP Servers installed. Skipping command creation.")
+        return
+    
+    for server_name, client in mcp_servers.items():
+        for tool in client.get_all_tools():
+            
+            executor.register_command(
+                    name=tool.name,
+                    handler=CommandMCP(tool_client=tool).run_cmd,
+                    description=f"MCP Tool {tool.name}",
+                    category="MCP"
+                )
+            print(f"Registered command: '{tool.name}' from MCP Server: '{server_name}'")

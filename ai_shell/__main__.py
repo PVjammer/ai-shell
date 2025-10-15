@@ -12,6 +12,27 @@ from ai_shell.core.bash_executor import BashExecutor
 from ai_shell.core.docker_bash_executor import DockerBashExecutor, DockerBashExecutorWithWrite
 from ai_shell.core.command_executor import CommandExecutor
 from ai_shell.commands import register_builtin_commands
+from ai_shell.core.mcp import MCPClient, install_mcp_servers
+from pathlib import Path
+
+PWD = Path.cwd()
+
+
+DEFAULT_MCP_CONFIG = {
+        "mcpServers": {
+            "filesystem": {
+            "command": "docker",
+            "args": [
+                "run",
+                "-i",
+                "--rm",
+                "--mount", f"type=bind,src={PWD},dst=/projects/ncb",
+                "mcp/filesystem",
+                "/projects"
+            ]
+            }
+        }
+    }
 
 
 @click.command()
@@ -24,7 +45,8 @@ from ai_shell.commands import register_builtin_commands
               default='native',
               help='Bash executor backend: native (direct), docker (sandboxed read-only), docker-rw (sandboxed read-write), mock (testing)')
 @click.option('--docker-image', default='ubuntu:latest', help='Docker image to use (only for docker backends)')
-def main(debug, prompt, vi_mode, history, bash_backend, docker_image):
+@click.option('--mcp-json', default=None, help="Path to the mcp.json file. If not present will use defaults.")
+def main(debug, prompt, vi_mode, history, bash_backend, docker_image, mcp_json):
     """
     ai-shell: AI-enhanced interactive shell.
 
@@ -32,14 +54,22 @@ def main(debug, prompt, vi_mode, history, bash_backend, docker_image):
     and MCP tools into a single interactive environment.
     """
 
+    if not mcp_json:
+        mcp_server_map= DEFAULT_MCP_CONFIG
+    else:
+        print(F"Loading mcp servers from json not implemented yet. Loading defaults.")
+        mcp_server_map= DEFAULT_MCP_CONFIG
+
+
     # Initialize components
     parser = Parser()
     renderer = Renderer()
     memory = MemoryStore()
+    mcp_servers: dict[str, MCPClient] = asyncio.run(install_mcp_servers(mcp_server_map))
 
     # Create command executor and register built-in commands
     executor = CommandExecutor()
-    register_builtin_commands(executor)
+    register_builtin_commands(executor, mcp_servers)
 
     if debug:
         commands = executor.get_command_names()
