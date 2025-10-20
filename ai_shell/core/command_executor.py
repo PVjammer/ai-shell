@@ -6,7 +6,7 @@ Manages registration and execution of agentic commands.
 
 from typing import Dict, List, Optional, Callable, AsyncIterator
 import inspect
-from ai_shell.core.interfaces import CommandResult, ToolDefinition
+from ai_shell.core.interfaces import CommandResult, ToolDefinition, CustomFunction, FunctionInput
 
 
 class CommandExecutor:
@@ -23,6 +23,13 @@ class CommandExecutor:
         self.command_info: Dict[str, ToolDefinition] = {}
         self.context_session = {"user_context": []}
 
+    def register_function(self, func: CustomFunction):
+        self.register_command(
+            name=func.name,
+            handler=func.execute_command,
+            description=func.description,
+            category="AI Command")
+    
     def register_command(self,
                         name: str,
                         handler: Callable,
@@ -125,7 +132,7 @@ class CommandExecutor:
         try:
             # Call handler with args, stdin, and options
             result = await handler(args, stdin=stdin, **options)
-
+            
             # If handler returns a string, wrap in CommandResult
             if isinstance(result, str):
                 return CommandResult(success=True, output=result, error="")

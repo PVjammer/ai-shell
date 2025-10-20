@@ -321,7 +321,7 @@ class REPL:
             self.state = SessionState.ERROR
             self.state = SessionState.READY
 
-    async def _handle_pipeline(self, command):
+    async def _handle_pipeline(self, command, parse=False):
         """Handle pipeline command - pipe output through stages."""
         self.state = SessionState.EXECUTING
 
