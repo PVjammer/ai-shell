@@ -110,7 +110,7 @@ class ClearContextSchema(OptionOnlyFunctionInput):
         default="user_context",
     )
     quiet: bool = Field(
-        description="If 'True' it wll not provide any output upon success. 'False by default",
+        description="If 'True' it wll not provide any output upon success. 'False' by default",
         default=False,    
     )
 
