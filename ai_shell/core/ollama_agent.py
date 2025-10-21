@@ -81,6 +81,8 @@ class OllamaAgent(IAgent):
         response_stream = self._call_func(messages=messages, stream=True)
         chat_response = []
         for chunk in response_stream:
+            if not chunk:
+                continue
             chat_response.append(chunk.message.content)
             yield chunk.message.content + ""
 
@@ -93,7 +95,7 @@ class OllamaAgent(IAgent):
             except Exception as e:
                 logging.exception("Error building chat history: {e}")
 
-    async def generate(self, message: str, context: Dict | None = None) -> AsyncIterator[str]:
+    async def generate(self, message: str, context: Dict | None = None) -> str:
         if context:
             for k, v in context.items():
                 print(f"{k}:  {len(v)}")

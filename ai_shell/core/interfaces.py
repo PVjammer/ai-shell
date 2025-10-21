@@ -271,7 +271,7 @@ class IAgent(Protocol):
         """
         ...
 
-    async def generate(self, prompt: str, context: Dict = None) -> str:
+    async def generate(self, message: str, context: Dict | None = None) -> str:
         """
         Generate a complete response (non-streaming).
 
