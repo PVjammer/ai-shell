@@ -129,9 +129,9 @@ async def clear_context(_input: ClearContextSchema, context_session: dict = {}) 
 
 
 class ViewContextSchema(OptionOnlyFunctionInput):
-    key: str | None = Field(
+    key: str = Field(
         description="The dict key to assign the context too. By default it will assign to 'user_context'",
-        default=None,
+        default="",
     )
 
 
